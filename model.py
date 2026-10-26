@@ -20,14 +20,23 @@ def _simulate(n=600, seed=0):
     return np.c_[days, temp, hum, soil], y
 
 _clf = None
+engine = "not loaded"
 
 def _get():
-    global _clf
+    global _clf, engine
     if _clf is None:
-        from tabpfn import TabPFNClassifier
         X, y = _simulate()
-        _clf = TabPFNClassifier()
-        _clf.fit(X, y)  # in-context "fit": no gradient training
+        try:
+            from tabpfn import TabPFNClassifier
+            clf = TabPFNClassifier()
+            clf.fit(X, y)  # in-context "fit": no gradient training
+            _clf, engine = clf, "TabPFN"
+        except Exception:
+            # License not accepted / no token / no internet -> lightweight fallback
+            from sklearn.ensemble import GradientBoostingClassifier
+            clf = GradientBoostingClassifier(random_state=0)
+            clf.fit(X, y)
+            _clf, engine = clf, "sklearn fallback"
     return _clf
 
 def predict_water(days, temp, hum, soil_name):
